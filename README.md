@@ -89,7 +89,6 @@ ssh -i "path of pem or putty file " machinenameu@public ip or dns
 4)pipenv shell
 
 5)mlflow server --default-artifact-root s3://s3bucketname -h 0.0.0.0 -p 5000  
-example:mlflow server --host 0.0.0.0 --port 5000 --default-artifact-root s3://youtube-sentimental-bucket
 
 
 6) as we have not use elastic ip to ec2 public ipv4 and dns will change automatically 
