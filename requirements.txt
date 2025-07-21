@@ -12,5 +12,5 @@ nltk==3.9.1
 pandas==2.2.3
 wordcloud==1.9.3
 seaborn==0.13.2
-
+google-api-python-client
 -e .

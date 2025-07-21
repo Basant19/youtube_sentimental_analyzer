@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>YouTube Sentiment Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+<div class="container mt-4">
+    <h1 class="mb-4">YouTube Sentiment Analyzer</h1>
+
+    <form method="POST" action="/">
+        <div class="form-group">
+            <label for="youtube_url">YouTube Video URL:</label>
+            <input type="text" class="form-control" id="youtube_url" name="youtube_url" required>
+        </div>
+
+        <div class="form-group">
+            <label for="max_comments">Max Comments to Analyze:</label>
+            <input type="number" class="form-control" id="max_comments" name="max_comments" min="1" max="100" value="20">
+        </div>
+
+        <button type="submit" class="btn btn-primary">Analyze</button>
+    </form>
+
+    {% if error %}
+        <div class="alert alert-danger mt-3">{{ error }}</div>
+    {% endif %}
+
+    {% if results %}
+        <div class="mt-5">
+            <h2>Analysis Results ({{ results|length }} Comments)</h2>
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <h4>Word Cloud</h4>
+                    <img src="data:image/png;base64,{{ wordcloud_image }}" class="img-fluid" alt="Word Cloud">
+                </div>
+                <div class="col-md-6">
+                    <h4>Sentiment Pie Chart</h4>
+                    <img src="data:image/png;base64,{{ piechart_image }}" class="img-fluid" alt="Pie Chart">
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h3>Comment-wise Sentiment</h3>
+                <ul class="list-group">
+                    {% for comment, sentiment in results %}
+                        <li class="list-group-item">
+                            <strong>Comment:</strong> {{ comment }}<br>
+                            <strong>Sentiment:</strong> {{ sentiment }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    {% endif %}
+</div>
+</body>
+</html>

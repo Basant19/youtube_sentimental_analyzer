@@ -1,6 +1,6 @@
 import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend before importing pyplot
-
+import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import io
@@ -15,11 +15,9 @@ from nltk.stem import WordNetLemmatizer
 from mlflow.tracking import MlflowClient
 import matplotlib.dates as mdates
 import pickle
-import os
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
-
 
 # Define the preprocessing function
 def preprocess_comment(comment):
@@ -55,20 +53,25 @@ def preprocess_comment(comment):
 # Load the model and vectorizer from the model registry and local storage
 def load_model_and_vectorizer(model_name, model_version, vectorizer_path):
      # Set MLflow tracking URI to your server
-     os.getenv("MLFLOW_SERVER_TRACKING_URI_EC2") # Replace with your MLflow tracking URI
-     client = MlflowClient()
-     model_uri = f"models:/{model_name}/{model_version}"
-     model = mlflow.pyfunc.load_model(model_uri)
-     with open(vectorizer_path, 'rb') as file:
-         vectorizer = pickle.load(file)
-   
-     return model, vectorizer
+    tracking_uri = os.getenv("MLFLOW_SERVER_TRACKING_URI_EC2")
+    mlflow.set_tracking_uri(tracking_uri)  # Replace with your MLflow tracking URI
+    client = MlflowClient()
+    model_uri = f"models:/{model_name}/{model_version}"
+    model = mlflow.pyfunc.load_model(model_uri)
+    with open(vectorizer_path, 'rb') as file:
+        vectorizer = pickle.load(file)
+    
+        return model, vectorizer
+
+
+
+
+
 
 
 
 # Initialize the model and vectorizer
 model, vectorizer = load_model_and_vectorizer("my_model", "1", "./tfidf_vectorizer.pkl")  # Update paths and versions as needed
-
 
 @app.route('/')
 def home():
