@@ -170,3 +170,19 @@ When running `dvc repro` or executing an MLflow-tracked script, the following er
 
 
 
+8) deployment 
+a)create a docker file 
+b)start a docker desktop
+c)Build the Docker Image 
+docker build --no-cache -t myapp:test .
+
+Outcome:
+Creates a fresh Docker image named myapp:test with all necessary dependencies installed as per requirements.txt, and the project source code copied into /app.
+
+d)Run the Container with Test Script
+docker run -it --rm myapp:test python test8.py
+
+Outcome:
+Verifies that everything in the container (Python, libraries, files) is working correctly by running test8.py.
+
+
