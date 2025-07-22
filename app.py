@@ -1,60 +1,66 @@
 import os
-import io
-import base64
+import uuid
 import logging
+import matplotlib
+matplotlib.use('Agg')  # ✅ Use non-GUI backend
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for, session
 
-from src.utils.scrapper import get_youtube_comments  # Ensure this doesn't require 'max_results' if not used
+from src.utils.scrapper import get_youtube_comments
 from src.utils.inference import load_model_and_artifacts, predict_sentiment
 
-# Set up template and static directory paths
-template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'templates')
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'frontend', 'static')
+# Template/static folder paths
+base_dir = os.path.dirname(__file__)
+template_dir = os.path.join(base_dir, 'frontend', 'templates')
+static_dir = os.path.join(base_dir, 'frontend', 'static')
+wordcloud_dir = os.path.join(static_dir, 'wordclouds')
+os.makedirs(wordcloud_dir, exist_ok=True)  # ✅ Ensure wordcloud dir exists
 
-# Flask App Initialization
+# Flask app setup
 app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
+app.secret_key = 'your_secret_key'
 
-# Logging Configuration
+# Logging setup
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("app.log", encoding="utf-8"),
+        logging.StreamHandler()
+    ]
 )
 
-# Load Model and Vectorizer Once
+# Load model and vectorizer
 try:
     model, vectorizer = load_model_and_artifacts("my_model")
-    logging.info("✅ Model and vectorizer loaded successfully.")
+    logging.info("✅ Model and vectorizer loaded.")
 except Exception as e:
-    logging.exception("❌ Failed to load model artifacts.")
+    logging.exception("❌ Could not load model/vectorizer.")
     raise e
 
 
 def generate_wordcloud(text_list):
-    """Generate base64 image of word cloud from list of texts."""
     try:
         wordcloud = WordCloud(width=800, height=400, background_color='white').generate(" ".join(text_list))
-        buf = io.BytesIO()
+        filename = f"{uuid.uuid4().hex}.png"
+        filepath = os.path.join(wordcloud_dir, filename)
+
         plt.figure(figsize=(10, 5))
         plt.imshow(wordcloud, interpolation='bilinear')
         plt.axis('off')
         plt.tight_layout()
-        plt.savefig(buf, format='png')
+        plt.savefig(filepath, format='png')
         plt.close()
-        return base64.b64encode(buf.getvalue()).decode('utf-8')
+
+        return filename
     except Exception as e:
         logging.exception("❌ Word cloud generation failed.")
         return None
 
 
 def map_prediction(value):
-    """Map numerical predictions to human-readable labels."""
-    if value == 1:
-        return "Positive"
-    elif value == -1:
-        return "Negative"
-    return "Neutral"
+    return "Positive" if value == 1 else "Negative" if value == -1 else "Neutral"
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -69,47 +75,62 @@ def index():
         logging.info(f"🔍 Processing URL: {url} | Max comments: {max_comments}")
 
         try:
-            # Step 1: Scrape comments
-            comments = get_youtube_comments(url)  # Adjust if you need to pass max_comments
+            comments = get_youtube_comments(url)
             if not comments:
-                raise ValueError("No comments retrieved from the YouTube video.")
+                raise ValueError("No comments retrieved from the video.")
 
-            comments = comments[:max_comments]  # Limit to max_comments manually
+            comments = comments[:max_comments]
             logging.info(f"✅ Retrieved {len(comments)} comments.")
 
-            # Step 2: Predict sentiment
             raw_results = predict_sentiment(comments, model, vectorizer)
             results = [(comment, map_prediction(pred)) for comment, pred in raw_results]
 
-            # Step 3: Count sentiment results
-            sentiments = [sentiment for _, sentiment in results]
+            sentiments = [s for _, s in results]
             sentiment_counts = {
                 "Positive": sentiments.count("Positive"),
                 "Negative": sentiments.count("Negative"),
                 "Neutral": sentiments.count("Neutral"),
             }
-            logging.info(f"📊 Sentiment counts: {sentiment_counts}")
 
-            # Step 4: Generate word cloud
-            wordcloud_img = generate_wordcloud(comments)
+            wordcloud_filename = generate_wordcloud(comments)
 
-            # Step 5: Render result
-            return render_template("index.html",
-                                   url=url,
-                                   results=results,
-                                   sentiment_counts=sentiment_counts,
-                                   wordcloud_img=wordcloud_img,
-                                   show_results=True)
+            # Store minimal data in session
+            session['results'] = results
+            session['sentiment_counts'] = sentiment_counts
+            session['wordcloud_filename'] = wordcloud_filename
+
+            return redirect(url_for('results'))
 
         except Exception as e:
-            logging.exception("❌ Error during processing.")
+            logging.exception("❌ Error in processing.")
             return render_template("index.html", error=str(e), show_results=False)
 
-    # GET request
     return render_template("index.html", show_results=False)
 
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # Use 8080 as default if PORT not set
-    app.run(host="0.0.0.0", port=port, debug=True)
+@app.route("/results")
+def results():
+    results = session.get('results')
+    sentiment_counts = session.get('sentiment_counts')
+    wordcloud_filename = session.get('wordcloud_filename')
 
+    if not results:
+        return redirect(url_for("index"))
+
+    wordcloud_url = f"/static/wordclouds/{wordcloud_filename}" if wordcloud_filename else None
+
+    return render_template("index.html",
+                           results=results,
+                           sentiment_counts=sentiment_counts,
+                           wordcloud_img_url=wordcloud_url,
+                           show_results=True)
+
+
+@app.route("/clear", methods=["POST"])
+def clear_results():
+    session.clear()
+    return redirect(url_for("index"))
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)), debug=True)

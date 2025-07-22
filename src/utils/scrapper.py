@@ -1,4 +1,4 @@
-# utils/scrapper.py
+# src/utils/scrapper.py
 
 import os
 import re
@@ -10,9 +10,21 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+import logging
+
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+if not logger.handlers:
+    file_handler = logging.FileHandler("scrapper.log", encoding="utf-8")
+    stream_handler = logging.StreamHandler()
+
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    stream_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
 
 def extract_video_id(youtube_url_or_id):
     """

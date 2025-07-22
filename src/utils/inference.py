@@ -1,4 +1,4 @@
-# inference.py (Fully Updated)
+#src/utils inference.py (Fully Updated)
 
 import os
 import logging
@@ -19,7 +19,7 @@ logger = logging.getLogger("inference")
 logger.setLevel(logging.DEBUG)
 
 console_handler = logging.StreamHandler()
-file_handler = logging.FileHandler("inference_errors.log")
+file_handler = logging.FileHandler("inference_errors.log",encoding="utf-8")
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 console_handler.setFormatter(formatter)
